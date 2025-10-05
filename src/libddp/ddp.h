@@ -2,6 +2,8 @@
 #define _HOSTDP_H
 
 #include <stdint.h>
+#include <stddef.h>
+#include <sys/socket.h>
 
 //+--------------+                                  
 //|    header    |                                  
@@ -37,6 +39,8 @@ struct __attribute__((__packed__)) ddp_header {
 	char hostname[256];
 };
 
-int ddp_broadcast_discover(int sockfd);
+int ddp_broadcast(int sockfd, int request, void *data, size_t len);
+int ddp_new_socket(int timeout_ms); //timeout in milliseconds
+int ddp_respond(int sockfd, int response, struct iovec *data_vec, size_t data_vec_len, struct sockaddr *addr, socklen_t addrlen);
 
 #endif

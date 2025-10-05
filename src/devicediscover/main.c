@@ -25,6 +25,7 @@ unsigned short hash(char *str){
 
 int main(int argc, char **argv){
 	printf("%d\n",hash("ping"));
+	int timeout = 5;
 	//====== look at arguments ======
 	struct option long_options[] = {
 		{"help",no_argument,0,'h'},
@@ -51,15 +52,19 @@ int main(int argc, char **argv){
 		print_help();
 		break;
 	case 24008:
-		discover();
+		discover(timeout);
+		break;
+	case 0:
+		//ping();
 		break;
 	}
-	case 0:
-		ping();
-		break;
 	return 0;
 }
 
-int discover(){
+int discover(int timeout){
+	int sockfd = ddp_new_socket(timeout);
+	if (sockfd < 0) return -1;
+	int result = ddp_broadcast(sockfd,DDP_REQUEST_DISCOVER_ADDRESSES,NULL,0);
+	if (result < 0) return -1;
 	return 0;
 }

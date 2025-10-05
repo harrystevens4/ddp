@@ -1,4 +1,7 @@
 #include <stdio.h>
+#include <arpa/inet.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
 #include <ifaddrs.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,11 +50,17 @@ int main(){
 		//====== process requests and discard responses ======
 		//a type less than 0 indicates a response
 		if (message_header.type < 0) continue;
+		char address_string[512] = {0};
+		printf(
+			"====== %s ======\n",
+			inet_ntop(sender_addr.sa_family,&sender_addr,address_string,sizeof(address_string))
+		);
 		switch (message_header.type){
 		case DDP_REQUEST_EMPTY:
 			respond_empty(sockfd,&sender_addr,sender_addrlen);
 			break;
 		case DDP_REQUEST_DISCOVER_ADDRESSES:
+			printf("--> discover addresses request\n");
 			respond_addresses(sockfd,&sender_addr,sender_addrlen);
 			break;
 		}
@@ -85,7 +94,7 @@ int respond_empty(int socket, struct sockaddr *addr, socklen_t addrlen){
 }
 int respond_addresses(int sockfd, struct sockaddr *addr, socklen_t addrlen){
 	//====== get all network interface addresses ======
-	struct ifaddr *local_addrs;
+	struct ifaddrs *local_addrs;
 	if (getifaddrs(&local_addrs) < 0){
 		perror("getifaddrs");
 		return -1;
@@ -94,7 +103,7 @@ int respond_addresses(int sockfd, struct sockaddr *addr, socklen_t addrlen){
 	struct ddp_header response_header = {
 		.type = DDP_RESPONSE_DISCOVER_ADDRESSES,
 	};
-	if (gethostname(&response_header.hostname,sizeof(response_header.hostname)) < 0){
+	if (gethostname(response_header.hostname,sizeof(response_header.hostname)) < 0){
 		perror("gethostname");
 		freeifaddrs(local_addrs);
 		return -1;
@@ -104,36 +113,16 @@ int respond_addresses(int sockfd, struct sockaddr *addr, socklen_t addrlen){
 	addr_vec[0].iov_base = &response_header; //wait writev kinda goes hard
 	addr_vec[0].iov_len = sizeof(response_header);
 	size_t addr_vec_count = 1;
-	for (struct ifaddr *next = local_addrs; next != NULL; next = next->ifa_next){
+	for (struct ifaddrs *next = local_addrs; next != NULL; next = next->ifa_next){
 		if (next->ifa_flags & IFF_LOOPBACK) continue;
 		addr_vec_count++;
 		addr_vec = realloc(addr_vec,sizeof(struct iovec)*addr_vec_count);
 		addr_vec[addr_vec_count-1].iov_base = &next->ifa_addr;
 		addr_vec[addr_vec_count-1].iov_len = sizeof(struct sockaddr);
 	}
-	//====== set the destination address so we can writev ======
-	if (connect(sockfd,addr,addrlen) < 0){
-		perror("connect");
-		freeifaddrs(local_addrs);
-		free(addr_vec);
-		return -1;
-	}
 	//====== send the data ======
-	response_header.body_size = sizeof(struct sockaddr) * (addr_vec_count-1);
-	long int count = writev(sockfd,addr_vec,addr_vec_count);
-	if (count < 0){
-		perror("writev");
-		freeifaddrs(local_addrs);
-		free(addr_vec);
-		return -1;
-	}
+	int result = ddp_respond(sockfd,DDP_RESPONSE_DISCOVER_ADDRESSES,addr_vec,addr_vec_count,addr,addrlen);
 	freeifaddrs(local_addrs);
-	//====== un connect the socket ======
-	struct sockaddr reset_addr = {
-		.sa_family = AF_UNSPEC,
-	};
-	if (connect(sockfd,&reset_addr,sizeof(reset_addr))){
-		perror("connect");
-		return -1;
-	}
+	free(addr_vec);
+	return result;
 }
