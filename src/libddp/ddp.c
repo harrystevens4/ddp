@@ -1,4 +1,5 @@
 #include "ddp.h"
+#include <errno.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <string.h>
@@ -36,11 +37,13 @@ int ddp_new_socket(int timeout_ms){
 	//====== set timeout ======
 	struct timeval timeout_tv = {
 		.tv_sec = timeout_ms/1000,
-		.tv_usec = (timeout_ms*100000) % 1000000000,
+		.tv_usec = (timeout_ms*1000) % 1000000,
 	};
-	result = setsockopt(sockfd,SOL_SOCKET,SO_RCVTIMEO,&timeout_tv,sizeof(timeout_tv));
-	result += setsockopt(sockfd,SOL_SOCKET,SO_SNDTIMEO,&timeout_tv,sizeof(timeout_tv));
-	if (result != 0){
+	if (setsockopt(sockfd,SOL_SOCKET,SO_RCVTIMEO,&timeout_tv,sizeof(timeout_tv)) < 0){
+		perror("setsockopt");
+		return -1;
+	}
+	if (setsockopt(sockfd,SOL_SOCKET,SO_SNDTIMEO,&timeout_tv,sizeof(timeout_tv)) < 0){
 		perror("setsockopt");
 		return -1;
 	}
@@ -111,4 +114,34 @@ int ddp_respond(int sockfd, int response, struct iovec *data_vec, size_t data_ve
 		return -1;
 	}
 	return 0;
+}
+long ddp_receive_response(int sockfd, char **return_buffer, struct sockaddr *addr, socklen_t *addrlen){
+	//====== receive untill we find a response ======
+	for (;;){
+		//memset my goat
+		struct ddp_header header;
+		memset(&header,0,sizeof(header));
+		//====== we need the header to get the body size ======
+		if (recv(sockfd,&header,sizeof(header),MSG_PEEK) < 0){
+			if (errno == EAGAIN || errno == EWOULDBLOCK) return -EAGAIN; //no data available
+			perror("recv");
+			return -1;
+		}
+		size_t packet_size = header.body_size + sizeof(header);
+		//chat should i use alloca?
+		char *buffer = malloc(packet_size);
+		//====== receive the packet fr this time ======
+		if (recvfrom(sockfd,buffer,packet_size,0,addr,addrlen) < 0){
+			perror("recvfrom");
+			return -1;
+		}
+		if (header.type > 0){
+			//request
+			free(buffer);
+		}else {
+			//response
+			*return_buffer = buffer;
+			return packet_size;
+		}
+	}
 }
