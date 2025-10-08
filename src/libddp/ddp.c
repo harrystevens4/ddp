@@ -108,6 +108,7 @@ int ddp_respond(int sockfd, int response, struct iovec *data_vec, size_t data_ve
 		.msg_iovlen = data_vec_len+1,
 	};
 	long int count = sendmsg(sockfd,&message,0);
+	//printf("sent %ld bytes\n",count);
 	free(response_vec);
 	if (count < 0){
 		perror("sendmsg");
@@ -131,7 +132,8 @@ long ddp_receive_response(int sockfd, char **return_buffer, struct sockaddr *add
 		//chat should i use alloca?
 		char *buffer = malloc(packet_size);
 		//====== receive the packet fr this time ======
-		if (recvfrom(sockfd,buffer,packet_size,0,addr,addrlen) < 0){
+		long int size = recvfrom(sockfd,buffer,packet_size,0,addr,addrlen);
+		if (size < packet_size){
 			perror("recvfrom");
 			return -1;
 		}
@@ -140,6 +142,7 @@ long ddp_receive_response(int sockfd, char **return_buffer, struct sockaddr *add
 			free(buffer);
 		}else {
 			//response
+			//printf("received %ld bytes\n",size);
 			*return_buffer = buffer;
 			return packet_size;
 		}

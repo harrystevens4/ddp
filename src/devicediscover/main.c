@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <string.h>
+#include <arpa/inet.h>
 #include <time.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -26,7 +28,7 @@ unsigned short hash(char *str){
 
 int main(int argc, char **argv){
 	printf("%d\n",hash("ping"));
-	int timeout = 1500;
+	int timeout = 200;
 	//====== look at arguments ======
 	struct option long_options[] = {
 		{"help",no_argument,0,'h'},
@@ -91,10 +93,28 @@ int discover(int timeout){
 		struct sockaddr sender_addr;
 		socklen_t sender_addrlen = sizeof(sender_addr);
 		long packet_size = ddp_receive_response(sockfd,&packet,&sender_addr,&sender_addrlen);
-		if (packet_size < 0) continue;
+		if (packet_size < 0) goto _continue;
 		struct ddp_header *header = (struct ddp_header *)packet;
-		if (header->type != DDP_RESPONSE_DISCOVER_ADDRESSES) continue;
+		if (header->type != DDP_RESPONSE_DISCOVER_ADDRESSES) goto _continue;
 		printf("response from host \"%s\"\n",header->hostname);
+		//====== print out all the addresses ======
+		size_t addr_count = header->body_size/sizeof(struct sockaddr);
+		struct sockaddr *addrs = (struct sockaddr *)(packet + sizeof(struct ddp_header));
+		for (size_t i = 0; i < addr_count; i++){
+			struct sockaddr *addr = addrs + i;
+			char addr_buffer[256];
+			memset(addr_buffer,0,sizeof(addr_buffer));
+			if (inet_ntop(addr->sa_family,addr,addr_buffer,sizeof(addr_buffer)) == NULL){
+				perror("inet_ntop");
+				printf("af: %d\n",addr->sa_family);
+				printf("AF_INET: %d, AF_INET6: %d\n",AF_INET,AF_INET6);
+				//free(packet);
+				//return -1;
+			}
+			printf("--> %s\n",addr_buffer);
+		}
+		_continue:
+		free(packet);
 	}
 	return 0;
 }

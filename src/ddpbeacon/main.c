@@ -99,25 +99,20 @@ int respond_addresses(int sockfd, struct sockaddr *addr, socklen_t addrlen){
 		perror("getifaddrs");
 		return -1;
 	}
-	//====== ignore any loopback addresses ======
-	struct ddp_header response_header = {
-		.type = DDP_RESPONSE_DISCOVER_ADDRESSES,
-	};
-	if (gethostname(response_header.hostname,sizeof(response_header.hostname)) < 0){
-		perror("gethostname");
-		freeifaddrs(local_addrs);
-		return -1;
-	}
 	//prepare iovec for addresses
 	struct iovec *addr_vec = malloc(sizeof(struct iovec));
-	addr_vec[0].iov_base = &response_header; //wait writev kinda goes hard
-	addr_vec[0].iov_len = sizeof(response_header);
-	size_t addr_vec_count = 1;
+	size_t addr_vec_count = 0;
 	for (struct ifaddrs *next = local_addrs; next != NULL; next = next->ifa_next){
+		//ignore any loopback addresses
 		if (next->ifa_flags & IFF_LOOPBACK) continue;
+		//only ipv4 and ipv6 addresses
+		sa_family_t family = next->ifa_addr->sa_family;
+		if (family != AF_INET && family != AF_INET6) continue;
+		char str_buf[256];
+		printf("- %s\n",inet_ntop(family,next->ifa_addr,str_buf,sizeof(str_buf)));
 		addr_vec_count++;
 		addr_vec = realloc(addr_vec,sizeof(struct iovec)*addr_vec_count);
-		addr_vec[addr_vec_count-1].iov_base = &next->ifa_addr;
+		addr_vec[addr_vec_count-1].iov_base = next->ifa_addr;
 		addr_vec[addr_vec_count-1].iov_len = sizeof(struct sockaddr);
 	}
 	//====== send the data ======
