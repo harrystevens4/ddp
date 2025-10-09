@@ -7,12 +7,12 @@
 #include <getopt.h>
 #include "../libddp/ddp.h"
 
-int discover();
+int discover_addresses();
 
 void print_help(){
 	printf("devicediscover <command> [options]\n");
 	printf("commands:\n");
-	printf("	discover : print the hostnames and ip addresses of all broadcasting devices\n");
+	printf("	addresses : print the hostnames and ip addresses of all broadcasting devices\n");
 	printf("	help     : show this text\n");
 	printf("	ping     : ping a host to see if they respond\n");
 }
@@ -27,7 +27,7 @@ unsigned short hash(char *str){
 }
 
 int main(int argc, char **argv){
-	printf("%d\n",hash("ping"));
+	//printf("%d\n",hash("addresses"));
 	int timeout = 200;
 	//====== look at arguments ======
 	struct option long_options[] = {
@@ -51,20 +51,23 @@ int main(int argc, char **argv){
 	}
 	//====== process subcommands ======
 	switch (hash(argv[optind])){ //hash produces a magic number that i have precalculated
-	case 47094: //help
+	case 47094:
 		print_help();
 		break;
-	case 24008:
-		discover(timeout);
+	case 23108:
+		discover_addresses(timeout);
 		break;
-	case 0:
+	case 61507:
 		//ping();
 		break;
+	default:
+		fprintf(stderr,"Unknown command \"%s\"\n",argv[optind]);
+		return 1;
 	}
 	return 0;
 }
 
-int discover(int timeout){
+int discover_addresses(int timeout){
 	//====== start a timer ======
 	struct timespec end_time;
 	int result = clock_gettime(CLOCK_BOOTTIME,&end_time);
@@ -102,16 +105,7 @@ int discover(int timeout){
 		struct sockaddr *addrs = (struct sockaddr *)(packet + sizeof(struct ddp_header));
 		for (size_t i = 0; i < addr_count; i++){
 			struct sockaddr *addr = addrs + i;
-			char addr_buffer[256];
-			memset(addr_buffer,0,sizeof(addr_buffer));
-			if (inet_ntop(addr->sa_family,addr,addr_buffer,sizeof(addr_buffer)) == NULL){
-				perror("inet_ntop");
-				printf("af: %d\n",addr->sa_family);
-				printf("AF_INET: %d, AF_INET6: %d\n",AF_INET,AF_INET6);
-				//free(packet);
-				//return -1;
-			}
-			printf("--> %s\n",addr_buffer);
+			printf("--> %s\n",sockaddr_to_string(addr));
 		}
 		_continue:
 		free(packet);

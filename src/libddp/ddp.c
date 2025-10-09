@@ -1,6 +1,7 @@
 #include "ddp.h"
 #include <errno.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -147,4 +148,18 @@ long ddp_receive_response(int sockfd, char **return_buffer, struct sockaddr *add
 			return packet_size;
 		}
 	}
+}
+
+const char *sockaddr_to_string(struct sockaddr *addr){
+	static char buffer[1024];
+	memset(buffer,0,sizeof(buffer));
+	if (addr->sa_family == AF_INET){
+		struct sockaddr_in *in_addr = (struct sockaddr_in *)addr;
+		return inet_ntop(AF_INET,&in_addr->sin_addr,buffer,sizeof(buffer));
+	}
+	if (addr->sa_family == AF_INET6){
+		struct sockaddr_in6 *in6_addr = (struct sockaddr_in6 *)addr;
+		return inet_ntop(AF_INET6,&in6_addr->sin6_addr,buffer,sizeof(buffer));
+	}
+	return NULL;
 }

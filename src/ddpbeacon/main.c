@@ -107,9 +107,9 @@ int respond_addresses(int sockfd, struct sockaddr *addr, socklen_t addrlen){
 		if (next->ifa_flags & IFF_LOOPBACK) continue;
 		//only ipv4 and ipv6 addresses
 		sa_family_t family = next->ifa_addr->sa_family;
-		if (family != AF_INET && family != AF_INET6) continue;
-		char str_buf[256];
-		printf("- %s\n",inet_ntop(family,next->ifa_addr,str_buf,sizeof(str_buf)));
+		//De Morgan's law comming in clutch
+		if ((family != AF_INET && family != AF_INET6) || (next->ifa_flags & IFF_UP) == 0) continue;
+		printf("- %s\n",sockaddr_to_string(next->ifa_addr));
 		addr_vec_count++;
 		addr_vec = realloc(addr_vec,sizeof(struct iovec)*addr_vec_count);
 		addr_vec[addr_vec_count-1].iov_base = next->ifa_addr;
