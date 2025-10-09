@@ -105,6 +105,8 @@ int respond_addresses(int sockfd, struct sockaddr *addr, socklen_t addrlen){
 	for (struct ifaddrs *next = local_addrs; next != NULL; next = next->ifa_next){
 		//ignore any loopback addresses
 		if (next->ifa_flags & IFF_LOOPBACK) continue;
+		//ignore empty addresses
+		if (next->ifa_addr == NULL) continue;
 		//only ipv4 and ipv6 addresses
 		sa_family_t family = next->ifa_addr->sa_family;
 		//De Morgan's law comming in clutch
