@@ -1,0 +1,4 @@
+#!/bin/sh
+cp ddpd /usr/bin/
+cp devicediscover /usr/bin
+cp ddp.service /usr/lib/systemd/system
