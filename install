@@ -2,3 +2,38 @@
 cp ddpd /usr/bin/
 cp devicediscover /usr/bin
 cp ddp.service /usr/lib/systemd/system
+cat << 'EOF' > /usr/share/bash-completion/completions/devicediscover
+_devicediscover()
+{
+    local cur prev opts
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    long_opts="--help --timeout"
+	short_opts="-h -t"
+	actions="addresses ping"
+
+    if [[ ${cur} == --* ]] ; then
+        COMPREPLY=( $(compgen -W "${long_opts}" -- ${cur}) )
+        return 0
+	elif [[ ${cur} == -* ]]; then
+        COMPREPLY=( $(compgen -W "${short_opts}" -- ${cur}) )
+        return 0
+	else
+		COMPREPLY=( $(compgen -W "${actions}" -- ${cur}) )
+		return 0
+    fi
+}
+complete -F _devicediscover devicediscover
+EOF
+cat << 'EOF' > /usr/share/fish/completions/devicediscover.fish
+	# list of subcommands 	
+	set -l commands addresses ping
+	complete -c devicediscover -f # no file completions
+	# subcommands
+	complete -c devicediscover -n "not __fish_seen_subcommand_from $commands" -a "addresses ping"
+	# short and long options
+	complete -c devicediscover -l help -s h -d "Print help text"
+	complete -c devicediscover -l timeout -s t -d "Timeout in milliseconds" -f -r
+EOF
+
