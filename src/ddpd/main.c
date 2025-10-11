@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <sys/sysinfo.h>
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
@@ -11,6 +12,7 @@
 
 int respond_empty(int socket, struct sockaddr *addr, socklen_t addrlen);
 int respond_addresses(int sockfd, struct sockaddr *addr, socklen_t addrlen);
+int respond_stats(int sockfd, struct sockaddr *addr, socklen_t addrlen);
 
 int main(){
 	//====== getaddrinfo a broadcast address ======
@@ -63,6 +65,10 @@ int main(){
 			printf("--> discover addresses request\n");
 			respond_addresses(sockfd,&sender_addr,sender_addrlen);
 			break;
+		case DDP_REQUEST_STATS:
+			printf("--> stats request\n");
+			respond_stats(sockfd,&sender_addr,sender_addrlen);
+			break;
 		}
 	}
 	//shutdown
@@ -107,4 +113,18 @@ int respond_addresses(int sockfd, struct sockaddr *addr, socklen_t addrlen){
 	freeifaddrs(local_addrs);
 	free(addr_vec);
 	return result;
+}
+int respond_stats(int sockfd, struct sockaddr *addr, socklen_t addrlen){
+	//====== collect system stats ======
+	struct sysinfo info;
+	if (sysinfo(&info) < 0){
+		perror("sysinfo");
+		return -1;
+	}
+	//====== send off the stats ======
+	struct iovec stat_vec[1] = {{
+		.iov_base = &info,
+		.iov_len = sizeof(struct sysinfo),
+	}};
+	return ddp_respond(sockfd,DDP_RESPONSE_STATS,stat_vec,1,addr,addrlen);
 }

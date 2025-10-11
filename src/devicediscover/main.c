@@ -1,26 +1,29 @@
 #include <stdio.h>
+#include <limits.h>
 #include <errno.h>
 #include <netdb.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <sys/sysinfo.h>
 #include <time.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <getopt.h>
 #include "../libddp/ddp.h"
 
-
 int discover_addresses(int timeout);
 int discover_hostnames(int timeout);
 int ping(int timeout_ms, char *address);
+int discover_stats(int timeout_ms, struct sockaddr *addr, socklen_t addrlen);
 
 void print_help(){
 	printf("devicediscover <command> [options]\n");
 	printf("commands:\n");
-	printf("	addresses      : print the hostnames and ip addresses of all broadcasting devices\n");
-	printf("	hostnames      : print the hostnames of all broadcasting devices\n");
-	printf("	help           : show this text\n");
-	printf("	ping <address> : ping a host to see if they respond\n");
+	printf("	addresses         : print the hostnames and ip addresses of all broadcasting devices\n");
+	printf("	hostnames         : print the hostnames of all broadcasting devices\n");
+	printf("	help              : show this text\n");
+	printf("	ping <address>    : ping a host to see if they respond\n");
+	printf("	sysinfo [address] : get system info about host(s)\n");
 }
 
 //thank you http://www.cse.yorku.ca/~oz/hash.html
@@ -33,7 +36,7 @@ unsigned short hash(char *str){
 }
 
 int main(int argc, char **argv){
-	//printf("%d\n",hash("hostnames"));
+	//printf("%d\n",hash("sysinfo"));
 	int timeout = 200;
 	//====== look at arguments ======
 	struct option long_options[] = {
@@ -66,6 +69,30 @@ int main(int argc, char **argv){
 	case 21407:
 		discover_hostnames(timeout);
 		break;
+	case 57635: //sysinfo
+		struct sockaddr addr;
+		socklen_t addrlen = sizeof(struct sockaddr);
+		if (optind+1 >= argc){
+			//default to broadcast
+			struct sockaddr_in broadcast_addr = DDP_BROADCAST_SOCKADDR;
+			addrlen = sizeof(struct sockaddr_in);
+			memcpy(&addr,&broadcast_addr,addrlen);
+		}else {
+			//use address if provided
+			struct addrinfo hints = {
+				.ai_socktype = SOCK_DGRAM,
+				.ai_family = AF_UNSPEC,
+			}, *addrinfo;
+			int result = getaddrinfo(argv[optind+1],DDP_PORT_STRING,&hints,&addrinfo);
+			if (result < 0){
+				fprintf(stderr,"getaddrinfo: %s\n",gai_strerror(result));
+				return 1;
+			}
+			memcpy(&addr,addrinfo->ai_addr,addrinfo->ai_addrlen);
+			addrlen = addrinfo->ai_addrlen;
+		}
+		discover_stats(timeout,&addr,addrlen);
+		break;
 	case 61507:
 		if (optind+1 >= argc){
 			fprintf(stderr,"Expected address or hostname\n");
@@ -78,6 +105,12 @@ int main(int argc, char **argv){
 		return 1;
 	}
 	return 0;
+}
+
+char *duration_string(time_t time){
+	static char buffer[1024] = {0};
+	snprintf(buffer,sizeof(buffer),"%luh %lum %lus",time/3600,(time/60)%60,time%60);
+	return buffer;
 }
 
 int ping(int timeout_ms, char *address){
@@ -145,6 +178,22 @@ int discover_addresses(int timeout){
 			struct sockaddr *addr = response->data;
 			printf("--> %s\n",sockaddr_to_string(addr+i));
 		}
+	}
+	ddp_free_responses(responses);
+	return 0;
+}
+
+int discover_stats(int timeout_ms, struct sockaddr *addr, socklen_t addrlen){
+	//====== send a discovery request ======
+	ddp_response_t *responses;
+	int count = ddp_query_addr(timeout_ms,DDP_REQUEST_STATS,&responses,addr,addrlen);
+	if (count < 0) return -1;
+	for (ddp_response_t *response = responses; response != NULL; response = response->next){
+		struct sysinfo *info = response->data;
+		printf("%s\n",response->header.hostname);
+		printf("--> %u processes\n",info->procs);
+		printf("--> %s uptime\n",duration_string(info->uptime));
+		printf("--> 15 min load average: %.1f%%\n",(float)info->loads[2]/(float)(1 << SI_LOAD_SHIFT));
 	}
 	ddp_free_responses(responses);
 	return 0;

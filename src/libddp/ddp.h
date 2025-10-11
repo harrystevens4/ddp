@@ -24,13 +24,17 @@
 
 #define DDP_PORT 7671
 #define DDP_PORT_STRING "7671"
+#define DDP_BROADCAST_SOCKADDR {.sin_family = AF_INET,.sin_addr = {0xffffffff},.sin_port = htons(DDP_PORT),}
+
 enum ddp_types { //requests are positive, responses negative and they match up
 	//requests
 	DDP_REQUEST_DISCOVER_ADDRESSES = 1,
 	DDP_REQUEST_EMPTY = 2,
+	DDP_REQUEST_STATS = 3,
 	//responses
 	DDP_RESPONSE_DISCOVER_ADDRESSES = -1,
 	DDP_RESPONSE_EMPTY = -2,
+	DDP_RESPONSE_STATS = -3,
 };
 
 struct __attribute__((__packed__)) ddp_header {
@@ -38,10 +42,7 @@ struct __attribute__((__packed__)) ddp_header {
 	uint64_t body_size; //can be anything based on the requests
 	char hostname[256];
 };
-struct __attribute__((__packed__)) ddp_stats {
-	time_t uptime;
-};
- struct ddp_response {
+struct ddp_response {
 	struct sockaddr addr;
 	socklen_t addrlen;
 	struct ddp_header header;
@@ -64,6 +65,7 @@ TIMER timer_new(int duration_ms);
 int timer_expired(TIMER *timer);
 //====== high level functions ======
 long int ddp_query(int timeout_ms, int request, ddp_response_t **responses);
+long int ddp_query_addr(int timeout_ms, int request, ddp_response_t **responses, struct sockaddr *addr, socklen_t addrlen);
 void ddp_free_responses(ddp_response_t *responses);
 
 #endif

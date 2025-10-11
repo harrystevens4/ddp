@@ -28,10 +28,10 @@ complete -F _devicediscover devicediscover
 EOF
 cat << 'EOF' > /usr/share/fish/completions/devicediscover.fish
 	# list of subcommands 	
-	set -l commands addresses ping hostnames
+	set -l commands addresses ping hostnames sysinfo
 	complete -c devicediscover -f # no file completions
 	# subcommands
-	complete -c devicediscover -n "not __fish_seen_subcommand_from $commands" -a "addresses ping hostnames"
+	complete -c devicediscover -n "not __fish_seen_subcommand_from $commands" -a "addresses ping hostnames sysinfo"
 	# short and long options
 	complete -c devicediscover -l help -s h -d "Print help text"
 	complete -c devicediscover -l timeout -s t -d "Timeout in milliseconds" -f -r

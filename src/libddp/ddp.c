@@ -169,7 +169,7 @@ const char *sockaddr_to_string(struct sockaddr *addr){
 	}
 	return NULL;
 }
-long int ddp_query(int timeout_ms, int request, ddp_response_t **responses){
+long int ddp_query_addr(int timeout_ms, int request, ddp_response_t **responses, struct sockaddr *addr, socklen_t addrlen){
 	//====== prep a response ======
 	int response_count = 0;
 	ddp_response_t *current_response = NULL;
@@ -179,7 +179,7 @@ long int ddp_query(int timeout_ms, int request, ddp_response_t **responses){
 	//====== send a discovery request ======
 	int sockfd = ddp_new_socket(timeout_ms);
 	if (sockfd < 0) return -1;
-	int result = ddp_broadcast(sockfd,request,NULL,0);
+	int result = ddp_sendto(sockfd,request,NULL,0,addr,addrlen);
 	if (result < 0){
 		return -1;
 		close(sockfd);
@@ -217,6 +217,10 @@ long int ddp_query(int timeout_ms, int request, ddp_response_t **responses){
 	}
 	close(sockfd);
 	return response_count;
+}
+long int ddp_query(int timeout_ms, int request, ddp_response_t **responses){
+	struct sockaddr_in addr = DDP_BROADCAST_SOCKADDR;
+	return ddp_query_addr(timeout_ms,request,responses,(struct sockaddr *)&addr,sizeof(struct sockaddr_in));
 }
 void ddp_free_responses(ddp_response_t *responses){
 	for (ddp_response_t *current = responses; current != NULL;){
