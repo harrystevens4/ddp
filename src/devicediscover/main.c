@@ -10,13 +10,15 @@
 #include "../libddp/ddp.h"
 
 
-int discover_addresses();
+int discover_addresses(int timeout);
+int discover_hostnames(int timeout);
 int ping(int timeout_ms, char *address);
 
 void print_help(){
 	printf("devicediscover <command> [options]\n");
 	printf("commands:\n");
 	printf("	addresses      : print the hostnames and ip addresses of all broadcasting devices\n");
+	printf("	hostnames      : print the hostnames of all broadcasting devices\n");
 	printf("	help           : show this text\n");
 	printf("	ping <address> : ping a host to see if they respond\n");
 }
@@ -31,7 +33,7 @@ unsigned short hash(char *str){
 }
 
 int main(int argc, char **argv){
-	//printf("%d\n",hash("addresses"));
+	//printf("%d\n",hash("hostnames"));
 	int timeout = 200;
 	//====== look at arguments ======
 	struct option long_options[] = {
@@ -60,6 +62,9 @@ int main(int argc, char **argv){
 		break;
 	case 23108:
 		discover_addresses(timeout);
+		break;
+	case 21407:
+		discover_hostnames(timeout);
 		break;
 	case 61507:
 		if (optind+1 >= argc){
