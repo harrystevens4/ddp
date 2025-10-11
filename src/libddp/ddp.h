@@ -38,12 +38,32 @@ struct __attribute__((__packed__)) ddp_header {
 	uint64_t body_size; //can be anything based on the requests
 	char hostname[256];
 };
+struct __attribute__((__packed__)) ddp_stats {
+	time_t uptime;
+};
+ struct ddp_response {
+	struct sockaddr addr;
+	socklen_t addrlen;
+	struct ddp_header header;
+	void *data;
+	size_t data_len;
+	struct ddp_response *next;
+};
+typedef struct ddp_response ddp_response_t;
+typedef struct timespec TIMER;
 
+//====== low level functions ======
+int ddp_sendto(int sockfd, int request, void *data, size_t len, struct sockaddr *addr, socklen_t addrlen);
 int ddp_broadcast(int sockfd, int request, void *data, size_t len);
 int ddp_new_socket(int timeout_ms); //timeout in milliseconds
 int ddp_respond(int sockfd, int response, struct iovec *data_vec, size_t data_vec_len, struct sockaddr *addr, socklen_t addrlen);
 //mallocs an array and stores the pointer in buffer
 long ddp_receive_response(int sockfd, char **buffer, struct sockaddr *addr, socklen_t *addrlen);
 const char *sockaddr_to_string(struct sockaddr *addr);
+TIMER timer_new(int duration_ms);
+int timer_expired(TIMER *timer);
+//====== high level functions ======
+long int ddp_query(int timeout_ms, int request, ddp_response_t **responses);
+void ddp_free_responses(ddp_response_t *responses);
 
 #endif

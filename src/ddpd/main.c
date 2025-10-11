@@ -75,22 +75,7 @@ char *get_host_name(){
 }
 int respond_empty(int socket, struct sockaddr *addr, socklen_t addrlen){
 	//====== simply send an empty response ======
-	struct ddp_header response_header = {
-		.type = DDP_RESPONSE_EMPTY,
-		.body_size = 0,
-	};
-	strcpy(response_header.hostname,get_host_name());
-	int result = write(socket,&response_header,sizeof(response_header));
-	if (result < 0){
-		perror("write");
-		return -1;
-	}
-	result = sendto(socket,&response_header,sizeof(response_header),0,addr,addrlen);
-	if (result < 0){
-		perror("sendto");
-		return -1;
-	}
-	return 0;
+	return ddp_respond(socket,DDP_RESPONSE_EMPTY,NULL,0,addr,addrlen);
 }
 int respond_addresses(int sockfd, struct sockaddr *addr, socklen_t addrlen){
 	//====== get all network interface addresses ======
